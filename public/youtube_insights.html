@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Insights</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: lightgrey;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            background-color: darkgrey;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        img.logo {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+        }
+        #keywords {
+            margin-top: 20px;
+        }
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        #topics {
+            margin-top: 20px;
+        }
+        .card {
+            margin-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            font-weight: bold;
+            display: block;
+        }
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+        }
+        .form-group .form-check {
+            display: flex;
+            align-items: center;
+        }
+        .form-group .form-check-input {
+            margin-right: 5px;
+        }
+        .form-group .form-check-label {
+            margin: 0;
+        }
+        .form-group .btn {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="logo.png" alt="Logo" class="logo">
+        <h1 class="text-center">YouTube Insights</h1>
+        
+        <form id="insightsForm">
+            <div class="form-group">
+                <label for="videoLink">YouTube Video Link:</label>
+                <input type="text" class="form-control" id="videoLink" required>
+            </div>
+            <div class="form-group form-check">
+                <input type="checkbox" class="form-check-input" id="notEnglish">
+                <label class="form-check-label" for="notEnglish">Not in English</label>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary" id="submitBtn">Send</button>
+                <button type="button" class="btn btn-secondary" id="clearBtn">Clear</button>
+            </div>
+        </form>
+
+        <div id="loadingSpinner">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p>Loading...</p>
+        </div>
+        
+        <div id="keywords"></div>
+        <div id="topics"></div>
+    </div>
+
+    <script>
+        document.getElementById("insightsForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            const videoLink = document.getElementById("videoLink").value;
+            const notEnglish = document.getElementById("notEnglish").checked;
+
+            // Clear previous output
+            document.getElementById("keywords").innerHTML = "";
+            document.getElementById("topics").innerHTML = "";
+
+            // Disable form controls and show spinner
+            document.getElementById("videoLink").disabled = true;
+            document.getElementById("notEnglish").disabled = true;
+            document.getElementById("submitBtn").disabled = true;
+            document.getElementById("clearBtn").disabled = true;
+            document.getElementById("loadingSpinner").style.display = "block";
+
+            // API Call
+            fetch("http://localhost:4000/openai/youtube_insights", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ "link": videoLink, "not_english": notEnglish }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data)
+                // Re-enable form controls and hide spinner
+                document.getElementById("videoLink").disabled = false;
+                document.getElementById("notEnglish").disabled = false;
+                document.getElementById("submitBtn").disabled = false;
+                document.getElementById("clearBtn").disabled = false;
+                document.getElementById("loadingSpinner").style.display = "none";
+
+                // Display keywords
+                const keywordsDiv = document.getElementById("keywords");
+                const keywordsList = data.insights.keywords.join(", ");
+                keywordsDiv.innerHTML = `<p><strong>Keywords:</strong> ${keywordsList}</p>`;
+
+                // Display topics
+                const topicsDiv = document.getElementById("topics");
+                let topicsHtml = '<h4>Topics:</h4>';
+                data.insights.topics.forEach(topic => {
+                    const title = topic.title.replace(/[<>"&]/g, function(match) {
+                        return {
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                            '&': '&amp;'
+                        }[match];
+                    });
+                    const description = topic.description ? `<p class="card-text">${topic.description.replace(/[<>"&]/g, function(match) {
+                        return {
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                            '&': '&amp;'
+                        }[match];
+                    })}</p>` : '';
+                    topicsHtml += `
+                        <div class="card">
+                            <div class="card-header">${title}</div>
+                            <div class="card-body">
+                                ${description}
+                            </div>
+                        </div>`;
+                });
+                topicsDiv.innerHTML = topicsHtml;
+            })
+            .catch(error => {
+                console.error("Error fetching data:", error);
+                // Re-enable form controls and hide spinner
+                document.getElementById("videoLink").disabled = false;
+                document.getElementById("notEnglish").disabled = false;
+                document.getElementById("submitBtn").disabled = false;
+                document.getElementById("clearBtn").disabled = false;
+                document.getElementById("loadingSpinner").style.display = "none";
+                document.getElementById("keywords").innerHTML = '<span class="text-danger">Error fetching data. Please try again later.</span>';
+            });
+        });
+
+        document.getElementById("clearBtn").addEventListener("click", function () {
+            document.getElementById("videoLink").value = "";
+            document.getElementById("notEnglish").checked = false;
+            document.getElementById("keywords").innerHTML = "";
+            document.getElementById("topics").innerHTML = "";
+        });
+    </script>
+</body>
+</html>
