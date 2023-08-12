@@ -4,13 +4,13 @@ const sanitize = require('sanitize-filename');
 const ytdl = require('ytdl-core-discord');
 const openai = require('../config/openaiConfig')
 
-const genarateYouTubeInsights = async (link, not_english) => {
+const genarateYouTubeInsights = async (req, res) => {
 
-  const filePath = await youtubeAudioDownloader(link)
+  const filePath = await youtubeAudioDownloader(req.body.link)
 
   //console.log(filePath)
 
-  const transcriptFilename = await generateTranscription(filePath, not_english)
+  const transcriptFilename = await generateTranscription(filePath, req.body.not_english)
 
   //console.log(transcriptFilename)
 
@@ -20,7 +20,9 @@ const genarateYouTubeInsights = async (link, not_english) => {
 
   //console.log(insights)
 
-  return insights
+  res.status(200).json({
+    insights: insights
+  })
 }
 
 const youtubeAudioDownloader = async (link) => {
