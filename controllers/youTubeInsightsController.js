@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const sanitize = require('sanitize-filename');
 const ytdl = require('ytdl-core-discord');
 const openai = require('../config/openaiConfig')
@@ -9,6 +10,9 @@ const genarateYouTubeInsights = async (link, not_english) => {
 
     console.log(filePath)
 
+    const transcriptFilename = await generateTranscription(filePath, not_english)
+
+    console.log(transcriptFilename)
 }
 
 const youtubeAudioDownloader = async (link) => {
@@ -71,5 +75,53 @@ const youtubeAudioDownloader = async (link) => {
     }
 }
 
+const generateTranscription = async (audio_file, not_english = false) => {
+
+    // Verify the audio file exists
+    if (!fileExists(audio_file)) {
+      console.log('Audio file does not exist!');
+      return
+    }
+  
+    transcript = ''
+  
+    // Translate or Transcript
+    if (not_english) {
+      transcript = await openai.createTranslation(
+        fs.createReadStream(audio_file),
+        "whisper-1"
+      );
+    }
+    else {
+      transcript = await openai.createTranscription(
+        fs.createReadStream(audio_file),
+        "whisper-1"
+      );
+    }
+  
+    console.log(transcript.data.text)
+  
+    const { name, ext } = path.parse(audio_file);
+    const transcriptFilename = `transcript-${name}.txt`;
+    const transcriptText = transcript.data.text;
+  
+    try {
+      fs.writeFileSync(transcriptFilename, transcriptText);
+      console.log('Transcript file written successfully!');
+    } catch (error) {
+      console.error('Error writing transcript file:', error);
+    }
+  
+    return transcriptFilename
+  }
+
+  function fileExists(filePath) {
+    try {
+      fs.accessSync(filePath, fs.constants.F_OK);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
 
 module.exports = { genarateYouTubeInsights }
